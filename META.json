@@ -4,7 +4,7 @@
       "Daisuke Murase <typester@cpan.org>"
    ],
    "dynamic_config" : 0,
-   "generated_by" : "Minilla/v3.1.13, CPAN::Meta::Converter version 2.150010",
+   "generated_by" : "Minilla/v3.1.29, CPAN::Meta::Converter version 2.150010",
    "license" : [
       "perl_5"
    ],
@@ -63,11 +63,11 @@
       "homepage" : "https://github.com/typester/Test-RedisServer",
       "repository" : {
          "type" : "git",
-         "url" : "git://github.com/typester/Test-RedisServer.git",
+         "url" : "https://github.com/typester/Test-RedisServer.git",
          "web" : "https://github.com/typester/Test-RedisServer"
       }
    },
-   "version" : "0.23",
+   "version" : "0.24",
    "x_authority" : "cpan:TYPESTER",
    "x_contributors" : [
       "Daisuke Murase <typester@gmail.com>",
@@ -75,11 +75,11 @@
       "Devendranath Thadi <devendranath.thadi3@gmail.com>",
       "Ivan Baidakou <dmol@gmx.com>",
       "Jeremy Zawodny <jzawodn@craigslist.org>",
+      "Masayuki Matsuki <y.songmu@gmail.com>",
       "Robin Smidsrød <robin@smidsrod.no>",
       "Sean Smith <ssmith@localhost.localdomain>",
-      "Songmu <y.songmu@gmail.com>",
       "gregor herrmann <gregoa@debian.org>"
    ],
-   "x_serialization_backend" : "JSON::PP version 4.04",
+   "x_serialization_backend" : "JSON::PP version 4.16",
    "x_static_install" : 1
 }

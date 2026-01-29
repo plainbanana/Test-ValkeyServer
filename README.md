@@ -1,4 +1,4 @@
-[![Actions Status](https://github.com/typester/Test-RedisServer/workflows/test/badge.svg)](https://github.com/typester/Test-RedisServer/actions)
+[![Actions Status](https://github.com/typester/Test-RedisServer/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/typester/Test-RedisServer/actions?workflow=test)
 # NAME
 
 Test::RedisServer - redis-server runner for tests.
