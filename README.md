@@ -1,4 +1,4 @@
-[![Actions Status](https://github.com/plainbanana/Test-ValkeyServer/actions/workflows/test.yaml/badge.svg?branch=(unknown))](https://github.com/plainbanana/Test-ValkeyServer/actions?workflow=test)
+[![Actions Status](https://github.com/plainbanana/Test-ValkeyServer/actions/workflows/test.yaml/badge.svg?branch=master)](https://github.com/plainbanana/Test-ValkeyServer/actions?workflow=test)
 # NAME
 
 Test::ValkeyServer - valkey-server runner for tests.
@@ -70,6 +70,24 @@ Available options are:
         save      => '900 1',
     });
     ```
+
+- cluster => 0 | 1 (Default: 0)
+
+    Enable single-node cluster mode. When enabled, Unix sockets are disabled and
+    `valkey-cli --cluster create` is called after the server starts. A TCP port
+    must be specified via `conf`. Requires `valkey-cli` in PATH and Valkey 8.1+.
+
+    ```perl
+    use Test::TCP qw(empty_port);
+    my $server = Test::ValkeyServer->new(
+        cluster => 1,
+        conf    => { port => empty_port(), bind => '127.0.0.1' },
+    );
+    my $redis = Redis->new($server->connect_info);
+    # Now you can use cluster commands
+    ```
+
+    Note: cluster mode is not compatible with `exec()`; use `start()` instead.
 
 - timeout => 'Int'
 

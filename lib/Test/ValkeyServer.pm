@@ -42,6 +42,11 @@ has _redis => (
     isa => 'Redis',
 );
 
+has cluster => (
+    is      => 'rw',
+    default => 0,
+);
+
 no Mouse;
 
 sub BUILD {
@@ -50,7 +55,15 @@ sub BUILD {
     $self->_owner_pid($$);
 
     my $tmpdir = $self->tmpdir;
-    unless (defined $self->conf->{port} or defined $self->conf->{unixsocket}) {
+    if ($self->cluster) {
+        croak "cluster mode requires a port to be specified in conf"
+            unless defined $self->conf->{port} && $self->conf->{port} > 0;
+        delete $self->conf->{unixsocket};
+        $self->conf->{bind} = '127.0.0.1' unless defined $self->conf->{bind};
+        $self->conf->{'cluster-enabled'} = 'yes';
+        $self->conf->{'cluster-config-file'} = "$tmpdir/nodes.conf";
+    }
+    elsif (!defined $self->conf->{port} && !defined $self->conf->{unixsocket}) {
         $self->conf->{unixsocket} = "$tmpdir/valkey.sock";
         $self->conf->{port} = '0';
     }
@@ -89,7 +102,7 @@ sub start {
     if ($pid == 0) {
         open STDOUT, '>&', $logfh or croak "dup(2) failed:$!";
         open STDERR, '>&', $logfh or croak "dup(2) failed:$!";
-        $self->exec;
+        $self->_exec;
     }
     close $logfh;
 
@@ -136,6 +149,10 @@ sub start {
         };
     }
 
+    if ($self->cluster) {
+        $self->_create_cluster($pid);
+    }
+
     # This is sometimes needed to send commands to ValkeyServer during the stop process.
     # Generally, we would like to generate it lazily and not have it as a property
     # of the object. However, if you try to create the object at the stop,
@@ -149,13 +166,22 @@ sub start {
 sub exec {
     my ($self) = @_;
 
+    croak "cluster mode is not supported with exec(); use start() instead"
+        if $self->cluster;
+
+    $self->_exec;
+}
+
+sub _exec {
+    my ($self) = @_;
+
     my $tmpdir = $self->tmpdir;
 
     open my $conffh, '>', "$tmpdir/valkey.conf" or croak "cannot write conf: $!";
     print $conffh $self->_conf_string;
     close $conffh;
 
-    exec 'valkey-server', "$tmpdir/valkey.conf"
+    CORE::exec 'valkey-server', "$tmpdir/valkey.conf"
         or do {
             if ($! == Errno::ENOENT) {
                 print STDERR "exec failed: no such file or directory\n";
@@ -241,6 +267,35 @@ sub _conf_string {
     $conf;
 }
 
+sub _create_cluster {
+    my ($self, $pid) = @_;
+
+    my $host = $self->conf->{bind} || '127.0.0.1';
+    my $port = $self->conf->{port};
+
+    my $output = `valkey-cli --cluster create $host:$port --cluster-replicas 0 --cluster-yes 2>&1`;
+
+    my $elapsed = 0;
+    my $cluster_ok;
+    while ($elapsed <= $self->timeout) {
+        my $info = `valkey-cli -h $host -p $port cluster info 2>&1`;
+        if ($info =~ /cluster_state:ok/) {
+            $cluster_ok = 1;
+            last;
+        }
+        sleep $elapsed += 0.1;
+    }
+
+    unless ($cluster_ok) {
+        kill SIGTERM, $pid;
+        while (waitpid($pid, WNOHANG) >= 0) {
+        }
+        $self->pid(undef);
+        croak "*** failed to create valkey cluster ***\n"
+            . "valkey-cli output: $output\n";
+    }
+}
+
 __PACKAGE__->meta->make_immutable;
 
 __END__
@@ -312,6 +367,22 @@ Your conf parameter will be:
         databases => 16,
         save      => '900 1',
     });
+
+=item * cluster => 0 | 1 (Default: 0)
+
+Enable single-node cluster mode. When enabled, Unix sockets are disabled and
+C<valkey-cli --cluster create> is called after the server starts. A TCP port
+must be specified via C<conf>. Requires C<valkey-cli> in PATH and Valkey 8.1+.
+
+    use Test::TCP qw(empty_port);
+    my $server = Test::ValkeyServer->new(
+        cluster => 1,
+        conf    => { port => empty_port(), bind => '127.0.0.1' },
+    );
+    my $redis = Redis->new($server->connect_info);
+    # Now you can use cluster commands
+
+Note: cluster mode is not compatible with C<exec()>; use C<start()> instead.
 
 =item * timeout => 'Int'
 
