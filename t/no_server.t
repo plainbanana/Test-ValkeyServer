@@ -2,13 +2,13 @@ use strict;
 use warnings;
 use Test::More;
 
-use Test::RedisServer;
+use Test::ValkeyServer;
 
 local $ENV{PATH} = '';
 
 my $server;
 eval {
-    $server = Test::RedisServer->new;
+    $server = Test::ValkeyServer->new;
 };
 ok !$server, 'server was not created ok';
 like $@, qr/^exec failed: no such file or directory/m, 'error msg ok';

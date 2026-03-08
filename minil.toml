@@ -1,5 +1,5 @@
-name = "Test-RedisServer"
-authority="cpan:TYPESTER"
+name = "Test-ValkeyServer"
+authority="cpan:PLAIN"
 module_maker="ModuleBuildTiny"
-badges = ["github-actions"]
+badges = ["github-actions/test.yaml"]
 markdown_maker = "Pod::Markdown::Github"

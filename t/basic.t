@@ -4,16 +4,16 @@ use Test::More 0.98;
 use Test::TCP;
 
 use Redis;
-use Test::RedisServer;
+use Test::ValkeyServer;
 
-eval { Test::RedisServer->new } or plan skip_all => 'redis-server is required in PATH to run this test';
+eval { Test::ValkeyServer->new } or plan skip_all => 'valkey-server is required in PATH to run this test';
 
 # unix socket by default
-my $server = Test::RedisServer->new;
+my $server = Test::ValkeyServer->new;
 ok $server->pid, 'pid ok';
 
 my %connect_info = $server->connect_info;
-like $connect_info{sock}, qr{/redis\.sock$}, 'unix socket ok';
+like $connect_info{sock}, qr{/valkey\.sock$}, 'unix socket ok';
 ok !$connect_info{server}, 'server key does not exist ok';
 
 my $redis = Redis->new(%connect_info);
@@ -25,7 +25,7 @@ is $redis->ping, undef, 'no server available ok';
 
 # port
 my $port = empty_port();
-$server = Test::RedisServer->new(conf => {
+$server = Test::ValkeyServer->new(conf => {
     bind => '127.0.0.1',
     port => $port,
 });

@@ -1,9 +1,9 @@
-package Test::RedisServer;
+package Test::ValkeyServer;
 use strict;
 use warnings;
 use Mouse;
 
-our $VERSION = '0.24';
+our $VERSION = '0.01';
 
 use Carp;
 use File::Temp;
@@ -51,7 +51,7 @@ sub BUILD {
 
     my $tmpdir = $self->tmpdir;
     unless (defined $self->conf->{port} or defined $self->conf->{unixsocket}) {
-        $self->conf->{unixsocket} = "$tmpdir/redis.sock";
+        $self->conf->{unixsocket} = "$tmpdir/valkey.sock";
         $self->conf->{port} = '0';
     }
 
@@ -60,7 +60,7 @@ sub BUILD {
     }
 
     if ($self->conf->{loglevel} and $self->conf->{loglevel} eq 'warning') {
-        warn "Test::RedisServer does not support \"loglevel warning\", using \"notice\" instead.\n";
+        warn "Test::ValkeyServer does not support \"loglevel warning\", using \"notice\" instead.\n";
         $self->conf->{loglevel} = 'notice';
     }
 
@@ -80,8 +80,8 @@ sub start {
     return if defined $self->pid;
 
     my $tmpdir = $self->tmpdir;
-    open my $logfh, '>>', "$tmpdir/redis-server.log"
-        or croak "failed to create log file: $tmpdir/redis-server.log";
+    open my $logfh, '>>', "$tmpdir/valkey-server.log"
+        or croak "failed to create log file: $tmpdir/valkey-server.log";
 
     my $pid = fork;
     croak "fork(2) failed:$!" unless defined $pid;
@@ -104,15 +104,12 @@ sub start {
         }
         else {
             my $log = q[];
-            if (open $logfh, '<', "$tmpdir/redis-server.log") {
+            if (open $logfh, '<', "$tmpdir/valkey-server.log") {
                 $log = do { local $/; <$logfh> };
                 close $logfh;
             }
 
-            # confirmed this message is included from v1.3.6 (older version in git repo)
-            #   to current HEAD (2012-07-30)
-            # The message has changed a bit with Redis 4.x, make regexp a bit more flexible
-            if ( $log =~ /[Rr]eady to accept connections/ ) {
+            if ( $log =~ /Ready to accept connections/ ) {
                 $ready = 1;
                 last;
             }
@@ -129,9 +126,9 @@ sub start {
             }
         }
 
-        croak "*** failed to launch redis-server ***\n" . do {
+        croak "*** failed to launch valkey-server ***\n" . do {
             my $log = q[];
-            if (open $logfh, '<', "$tmpdir/redis-server.log") {
+            if (open $logfh, '<', "$tmpdir/valkey-server.log") {
                 $log = do { local $/; <$logfh> };
                 close $logfh;
             }
@@ -139,7 +136,7 @@ sub start {
         };
     }
 
-    # This is sometimes needed to send commands to RedisServer during the stop process.
+    # This is sometimes needed to send commands to ValkeyServer during the stop process.
     # Generally, we would like to generate it lazily and not have it as a property
     # of the object. However, if you try to create the object at the stop,
     # the object generation may fail, such as missing the socket file. Therefore,
@@ -154,11 +151,11 @@ sub exec {
 
     my $tmpdir = $self->tmpdir;
 
-    open my $conffh, '>', "$tmpdir/redis.conf" or croak "cannot write conf: $!";
+    open my $conffh, '>', "$tmpdir/valkey.conf" or croak "cannot write conf: $!";
     print $conffh $self->_conf_string;
     close $conffh;
 
-    exec 'redis-server', "$tmpdir/redis.conf"
+    exec 'valkey-server', "$tmpdir/valkey.conf"
         or do {
             if ($! == Errno::ENOENT) {
                 print STDERR "exec failed: no such file or directory\n";
@@ -177,12 +174,12 @@ sub stop {
     return unless defined $self->pid;
 
     # If the tmpdir has disappeared, clear the save config to prevent saving
-    # in the server terminating process. The newer Redis will save on stop
+    # in the server terminating process. The newer Valkey will save on stop
     # for robustness, but will keep blocking if the directory is missing.
     #
-    # It is unlikely that tmpdir will disappear first, but if both the RedisServer
+    # It is unlikely that tmpdir will disappear first, but if both the ValkeyServer
     # object and the tmpdir are defined globally, it may happen because the order
-    # in which they are DESTLOYed is uncertain.
+    # in which they are DEMOLISHed is uncertain.
     if (! -f $self->tmpdir) {
         $self->_redis->config_set('appendonly', 'no');
         $self->_redis->config_set('save', '');
@@ -248,38 +245,46 @@ __PACKAGE__->meta->make_immutable;
 
 __END__
 
-=for stopwords redis redis-server mysqld tmpdir destructor
+=for stopwords valkey valkey-server mysqld tmpdir destructor Valkey plainbanana
 
 =head1 NAME
 
-Test::RedisServer - redis-server runner for tests.
+Test::ValkeyServer - valkey-server runner for tests.
 
 =head1 SYNOPSIS
 
     use Redis;
-    use Test::RedisServer;
+    use Test::ValkeyServer;
     use Test::More;
-    
-    my $redis_server;
+
+    my $valkey_server;
     eval {
-        $redis_server = Test::RedisServer->new;
-    } or plan skip_all => 'redis-server is required for this test';
-    
-    my $redis = Redis->new( $redis_server->connect_info );
-    
+        $valkey_server = Test::ValkeyServer->new;
+    } or plan skip_all => 'valkey-server is required for this test';
+
+    my $redis = Redis->new( $valkey_server->connect_info );
+
     is $redis->ping, 'PONG', 'ping pong ok';
-    
+
     done_testing;
 
 =head1 DESCRIPTION
+
+Test::ValkeyServer is a fork of L<Test::RedisServer> adapted for
+L<Valkey|https://valkey.io/>, the open source high-performance key/value store.
+It automatically spawns a temporary valkey-server instance for use in your test
+suite and cleans it up when done.
+
+This module was forked from L<Test::RedisServer> version 0.24 by Daisuke Murase
+and adapted for Valkey compatibility.
 
 =head1 METHODS
 
 =head2 new(%options)
 
-    my $redis_server = Test::RedisServer->new(%options);
+    my $valkey_server = Test::ValkeyServer->new(%options);
 
-Create a new redis-server instance, and start it by default (use auto_start option to avoid this)
+Create a new valkey-server instance, and start it by default (use auto_start option to avoid this)
 
 Available options are:
 
@@ -287,14 +292,14 @@ Available options are:
 
 =item * auto_start => 0 | 1 (Default: 1)
 
-Automatically start redis-server instance (by default).
+Automatically start valkey-server instance (by default).
 You can disable this feature by C<< auto_start => 0 >>, and start instance manually by C<start> or C<exec> method below.
 
 =item * conf => 'HashRef'
 
-This is a redis.conf key value pair. You can use any key-value pair(s) that redis-server supports.
+This is a valkey.conf key value pair. You can use any key-value pair(s) that valkey-server supports.
 
-If you want to use this redis.conf:
+If you want to use this valkey.conf:
 
     port 9999
     databases 16
@@ -302,7 +307,7 @@ If you want to use this redis.conf:
 
 Your conf parameter will be:
 
-    Test::RedisServer->new( conf => {
+    Test::ValkeyServer->new( conf => {
         port      => 9999,
         databases => 16,
         save      => '900 1',
@@ -310,21 +315,21 @@ Your conf parameter will be:
 
 =item * timeout => 'Int'
 
-Timeout seconds for detecting if redis-server is awake or not. (Default: 3)
+Timeout seconds for detecting if valkey-server is awake or not. (Default: 3)
 
 =item * tmpdir => 'String'
 
-Temporal directory, where redis config will be stored. By default it is created for you, but if you start Test::RedisServer via exec (e.g. with Test::TCP), you should provide it to be automatically deleted:
+Temporal directory, where valkey config will be stored. By default it is created for you, but if you start Test::ValkeyServer via exec (e.g. with Test::TCP), you should provide it to be automatically deleted:
 
 =back
 
 =head2 start
 
-Start redis-server instance manually.
+Start valkey-server instance manually.
 
 =head2 exec
 
-Just exec to redis-server instance. This method is useful to use this module with L<Test::TCP>, L<Proclet> or etc.
+Just exec to valkey-server instance. This method is useful to use this module with L<Test::TCP>, L<Proclet> or etc.
 
     use File::Temp;
     use Test::TCP;
@@ -337,37 +342,37 @@ Just exec to redis-server instance. This method is useful to use this module wit
         },
         server => sub {
             my ($port) = @_;
-            my $redis = Test::RedisServer->new(
+            my $valkey = Test::ValkeyServer->new(
                 auto_start => 0,
                 conf       => { port => $port },
                 tmpdir     => $tmp_dir,
             );
-            $redis->exec;
+            $valkey->exec;
         },
     );
 
 =head2 stop
 
-Stop redis-server instance.
+Stop valkey-server instance.
 
-This method is automatically called from object destructor, DESTROY.
+This method is automatically called from object destructor, DEMOLISH.
 
 =head2 connect_info
 
-Return connection info for client library to connect this redis-server instance.
+Return connection info for client library to connect this valkey-server instance.
 
 This parameter is designed to pass directly to L<Redis> module.
 
-    my $redis_server = Test::RedisServer->new;
-    my $redis = Redis->new( $redis_server->connect_info );
+    my $valkey_server = Test::ValkeyServer->new;
+    my $redis = Redis->new( $valkey_server->connect_info );
 
 =head2 pid
 
-Return redis-server instance's process id, or undef when redis-server is not running.
+Return valkey-server instance's process id, or undef when valkey-server is not running.
 
 =head2 wait_exit
 
-Block until redis instance exited. 
+Block until valkey instance exited.
 
 =head1 SEE ALSO
 
@@ -377,7 +382,7 @@ L<Test::Memcached> for Memcached.
 
 This module steals lots of stuff from above modules.
 
-L<Test::Mock::Redis>, another approach for testing redis application.
+L<Test::RedisServer>, the original module this was forked from.
 
 =head1 INTERNAL METHODS
 
@@ -387,11 +392,15 @@ L<Test::Mock::Redis>, another approach for testing redis application.
 
 =head1 AUTHOR
 
-Daisuke Murase <typester@cpan.org>
+Daisuke Murase <typester@cpan.org> (original L<Test::RedisServer> author)
+
+Current maintainer: plainbanana
 
 =head1 COPYRIGHT AND LICENSE
 
 Copyright (c) 2012 KAYAC Inc. All rights reserved.
+
+Forked as Test::ValkeyServer in 2025 by plainbanana.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.

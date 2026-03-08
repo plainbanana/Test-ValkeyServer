@@ -2,13 +2,13 @@ use strict;
 use warnings;
 use Test::More;
 
-use Test::RedisServer;
+use Test::ValkeyServer;
 
-eval { Test::RedisServer->new } or plan skip_all => 'redis-server is required in PATH to run this test';
+eval { Test::ValkeyServer->new } or plan skip_all => 'valkey-server is required in PATH to run this test';
 
 my $server;
 eval {
-    $server = Test::RedisServer->new( conf => {
+    $server = Test::ValkeyServer->new( conf => {
         'unknown_key' => 'unknown_val',
     });
 };

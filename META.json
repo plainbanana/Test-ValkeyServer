@@ -1,7 +1,7 @@
 {
-   "abstract" : "redis-server runner for tests.",
+   "abstract" : "valkey-server runner for tests.",
    "author" : [
-      "Daisuke Murase <typester@cpan.org>"
+      "Daisuke Murase <typester@cpan.org> (original L<Test::RedisServer> author)"
    ],
    "dynamic_config" : 0,
    "generated_by" : "Minilla/v3.1.29, CPAN::Meta::Converter version 2.150010",
@@ -12,7 +12,7 @@
       "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
       "version" : 2
    },
-   "name" : "Test-RedisServer",
+   "name" : "Test-ValkeyServer",
    "no_index" : {
       "directory" : [
          "t",
@@ -58,27 +58,28 @@
    "release_status" : "unstable",
    "resources" : {
       "bugtracker" : {
-         "web" : "https://github.com/typester/Test-RedisServer/issues"
+         "web" : "https://github.com/plainbanana/Test-ValkeyServer/issues"
       },
-      "homepage" : "https://github.com/typester/Test-RedisServer",
+      "homepage" : "https://github.com/plainbanana/Test-ValkeyServer",
       "repository" : {
          "type" : "git",
-         "url" : "https://github.com/typester/Test-RedisServer.git",
-         "web" : "https://github.com/typester/Test-RedisServer"
+         "url" : "https://github.com/plainbanana/Test-ValkeyServer.git",
+         "web" : "https://github.com/plainbanana/Test-ValkeyServer"
       }
    },
-   "version" : "0.24",
-   "x_authority" : "cpan:TYPESTER",
+   "version" : "0.01",
+   "x_authority" : "cpan:PLAIN",
    "x_contributors" : [
       "Daisuke Murase <typester@gmail.com>",
       "David Cantrell <david.cantrell@broadbean.com>",
       "Devendranath Thadi <devendranath.thadi3@gmail.com>",
       "Ivan Baidakou <dmol@gmx.com>",
       "Jeremy Zawodny <jzawodn@craigslist.org>",
-      "Masayuki Matsuki <y.songmu@gmail.com>",
       "Robin Smidsrød <robin@smidsrod.no>",
       "Sean Smith <ssmith@localhost.localdomain>",
-      "gregor herrmann <gregoa@debian.org>"
+      "Songmu <y.songmu@gmail.com>",
+      "gregor herrmann <gregoa@debian.org>",
+      "plainbanana <plainbanana@mustardon.tokyo>"
    ],
    "x_serialization_backend" : "JSON::PP version 4.16",
    "x_static_install" : 1

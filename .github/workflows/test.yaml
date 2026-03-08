@@ -12,14 +12,24 @@ jobs:
       fail-fast: false
       matrix:
         perl:
-          - '5.32'
-          - '5.34'
+          - '5.42'
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Setup perl
         uses: shogo82148/actions-setup-perl@v1
         with:
           perl-version: ${{ matrix.perl }}
+      - name: Install valkey-server
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valkey-server || {
+            echo "valkey-server not in apt, installing from GitHub release"
+            curl -fsSL https://github.com/valkey-io/valkey/releases/download/9.0.3/valkey-9.0.3-noble-x86_64.tar.gz -o /tmp/valkey.tar.gz
+            tar xzf /tmp/valkey.tar.gz -C /tmp
+            sudo cp /tmp/valkey-9.0.3-noble-x86_64/bin/valkey-server /usr/local/bin/
+            sudo chmod +x /usr/local/bin/valkey-server
+          }
+          valkey-server --version
       - run: |
           cpanm --quiet --installdeps --notest --with-recommends .
           perl Build.PL && ./Build build && ./Build test

@@ -3,11 +3,11 @@ use warnings;
 use Test::More;
 
 use Redis;
-use Test::RedisServer;
+use Test::ValkeyServer;
 
-eval { Test::RedisServer->new } or plan skip_all => 'redis-server is required in PATH to run this test';
+eval { Test::ValkeyServer->new } or plan skip_all => 'valkey-server is required in PATH to run this test';
 
-my $server = Test::RedisServer->new( auto_start => 0 );
+my $server = Test::ValkeyServer->new( auto_start => 0 );
 
 my $redis;
 eval {

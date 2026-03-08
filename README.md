@@ -1,21 +1,21 @@
-[![Actions Status](https://github.com/typester/Test-RedisServer/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/typester/Test-RedisServer/actions?workflow=test)
+[![Actions Status](https://github.com/plainbanana/Test-ValkeyServer/actions/workflows/test.yaml/badge.svg?branch=(unknown))](https://github.com/plainbanana/Test-ValkeyServer/actions?workflow=test)
 # NAME
 
-Test::RedisServer - redis-server runner for tests.
+Test::ValkeyServer - valkey-server runner for tests.
 
 # SYNOPSIS
 
 ```perl
 use Redis;
-use Test::RedisServer;
+use Test::ValkeyServer;
 use Test::More;
 
-my $redis_server;
+my $valkey_server;
 eval {
-    $redis_server = Test::RedisServer->new;
-} or plan skip_all => 'redis-server is required for this test';
+    $valkey_server = Test::ValkeyServer->new;
+} or plan skip_all => 'valkey-server is required for this test';
 
-my $redis = Redis->new( $redis_server->connect_info );
+my $redis = Redis->new( $valkey_server->connect_info );
 
 is $redis->ping, 'PONG', 'ping pong ok';
 
@@ -24,28 +24,36 @@ done_testing;
 
 # DESCRIPTION
 
+Test::ValkeyServer is a fork of [Test::RedisServer](https://metacpan.org/pod/Test%3A%3ARedisServer) adapted for
+[Valkey](https://valkey.io/), the open source high-performance key/value store.
+It automatically spawns a temporary valkey-server instance for use in your test
+suite and cleans it up when done.
+
+This module was forked from [Test::RedisServer](https://metacpan.org/pod/Test%3A%3ARedisServer) version 0.24 by Daisuke Murase
+and adapted for Valkey compatibility.
+
 # METHODS
 
 ## new(%options)
 
 ```perl
-my $redis_server = Test::RedisServer->new(%options);
+my $valkey_server = Test::ValkeyServer->new(%options);
 ```
 
-Create a new redis-server instance, and start it by default (use auto\_start option to avoid this)
+Create a new valkey-server instance, and start it by default (use auto\_start option to avoid this)
 
 Available options are:
 
 - auto\_start => 0 | 1 (Default: 1)
 
-    Automatically start redis-server instance (by default).
+    Automatically start valkey-server instance (by default).
     You can disable this feature by `auto_start => 0`, and start instance manually by `start` or `exec` method below.
 
 - conf => 'HashRef'
 
-    This is a redis.conf key value pair. You can use any key-value pair(s) that redis-server supports.
+    This is a valkey.conf key value pair. You can use any key-value pair(s) that valkey-server supports.
 
-    If you want to use this redis.conf:
+    If you want to use this valkey.conf:
 
     ```
     port 9999
@@ -56,7 +64,7 @@ Available options are:
     Your conf parameter will be:
 
     ```perl
-    Test::RedisServer->new( conf => {
+    Test::ValkeyServer->new( conf => {
         port      => 9999,
         databases => 16,
         save      => '900 1',
@@ -65,19 +73,19 @@ Available options are:
 
 - timeout => 'Int'
 
-    Timeout seconds for detecting if redis-server is awake or not. (Default: 3)
+    Timeout seconds for detecting if valkey-server is awake or not. (Default: 3)
 
 - tmpdir => 'String'
 
-    Temporal directory, where redis config will be stored. By default it is created for you, but if you start Test::RedisServer via exec (e.g. with Test::TCP), you should provide it to be automatically deleted:
+    Temporal directory, where valkey config will be stored. By default it is created for you, but if you start Test::ValkeyServer via exec (e.g. with Test::TCP), you should provide it to be automatically deleted:
 
 ## start
 
-Start redis-server instance manually.
+Start valkey-server instance manually.
 
 ## exec
 
-Just exec to redis-server instance. This method is useful to use this module with [Test::TCP](https://metacpan.org/pod/Test%3A%3ATCP), [Proclet](https://metacpan.org/pod/Proclet) or etc.
+Just exec to valkey-server instance. This method is useful to use this module with [Test::TCP](https://metacpan.org/pod/Test%3A%3ATCP), [Proclet](https://metacpan.org/pod/Proclet) or etc.
 
 ```perl
 use File::Temp;
@@ -91,40 +99,40 @@ test_tcp(
     },
     server => sub {
         my ($port) = @_;
-        my $redis = Test::RedisServer->new(
+        my $valkey = Test::ValkeyServer->new(
             auto_start => 0,
             conf       => { port => $port },
             tmpdir     => $tmp_dir,
         );
-        $redis->exec;
+        $valkey->exec;
     },
 );
 ```
 
 ## stop
 
-Stop redis-server instance.
+Stop valkey-server instance.
 
-This method is automatically called from object destructor, DESTROY.
+This method is automatically called from object destructor, DEMOLISH.
 
 ## connect\_info
 
-Return connection info for client library to connect this redis-server instance.
+Return connection info for client library to connect this valkey-server instance.
 
 This parameter is designed to pass directly to [Redis](https://metacpan.org/pod/Redis) module.
 
 ```perl
-my $redis_server = Test::RedisServer->new;
-my $redis = Redis->new( $redis_server->connect_info );
+my $valkey_server = Test::ValkeyServer->new;
+my $redis = Redis->new( $valkey_server->connect_info );
 ```
 
 ## pid
 
-Return redis-server instance's process id, or undef when redis-server is not running.
+Return valkey-server instance's process id, or undef when valkey-server is not running.
 
 ## wait\_exit
 
-Block until redis instance exited. 
+Block until valkey instance exited.
 
 # SEE ALSO
 
@@ -134,7 +142,7 @@ Block until redis instance exited.
 
 This module steals lots of stuff from above modules.
 
-[Test::Mock::Redis](https://metacpan.org/pod/Test%3A%3AMock%3A%3ARedis), another approach for testing redis application.
+[Test::RedisServer](https://metacpan.org/pod/Test%3A%3ARedisServer), the original module this was forked from.
 
 # INTERNAL METHODS
 
@@ -144,11 +152,15 @@ This module steals lots of stuff from above modules.
 
 # AUTHOR
 
-Daisuke Murase <typester@cpan.org>
+Daisuke Murase <typester@cpan.org> (original [Test::RedisServer](https://metacpan.org/pod/Test%3A%3ARedisServer) author)
+
+Current maintainer: plainbanana
 
 # COPYRIGHT AND LICENSE
 
 Copyright (c) 2012 KAYAC Inc. All rights reserved.
+
+Forked as Test::ValkeyServer in 2025 by plainbanana.
 
 This program is free software; you can redistribute
 it and/or modify it under the same terms as Perl itself.
