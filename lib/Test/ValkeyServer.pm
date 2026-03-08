@@ -387,6 +387,7 @@ Note: cluster mode is not compatible with C<exec()>; use C<start()> instead.
 =item * timeout => 'Int'
 
 Timeout seconds for detecting if valkey-server is awake or not. (Default: 3)
+In cluster mode, this timeout applies to both server startup and cluster creation separately.
 
 =item * tmpdir => 'String'
 
