@@ -273,13 +273,19 @@ sub _create_cluster {
     my $host = $self->conf->{bind} || '0.0.0.0';
     my $port = $self->conf->{port};
 
-    my $output = `valkey-cli --cluster create $host:$port --cluster-replicas 0 --cluster-yes 2>&1`;
+    my $create = $self->_run_valkey_cli(
+        '--cluster', 'create', "$host:$port",
+        '--cluster-replicas', '0', '--cluster-yes',
+    );
 
     my $elapsed = 0;
     my $cluster_ok;
+    my $info = { output => q[], timed_out => 0 };
     while ($elapsed <= $self->timeout) {
-        my $info = `valkey-cli -h $host -p $port cluster info 2>&1`;
-        if ($info =~ /cluster_state:ok/) {
+        $info = $self->_run_valkey_cli('-h', $host, '-p', $port, 'cluster', 'info');
+        last if $info->{timed_out};
+
+        if ($info->{output} =~ /cluster_state:ok/) {
             $cluster_ok = 1;
             last;
         }
@@ -291,9 +297,77 @@ sub _create_cluster {
         while (waitpid($pid, WNOHANG) >= 0) {
         }
         $self->pid(undef);
-        croak "*** failed to create valkey cluster ***\n"
-            . "valkey-cli output: $output\n";
+        my @message = ('*** failed to create valkey cluster ***');
+        push @message, 'valkey-cli --cluster create timed out'
+            if $create->{timed_out};
+        push @message, 'valkey-cli cluster info timed out'
+            if $info->{timed_out};
+        push @message, "valkey-cli output: $create->{output}"
+            if length $create->{output};
+        push @message, "last valkey-cli cluster info output: $info->{output}"
+            if length $info->{output};
+        croak join("\n", @message) . "\n";
     }
+}
+
+sub _run_valkey_cli {
+    my ($self, @args) = @_;
+
+    my $tmpdir = $self->tmpdir;
+    my $logfile = "$tmpdir/valkey-server.log";
+
+    open my $logfh, '>>', $logfile
+        or croak "failed to create log file: $logfile";
+    seek $logfh, 0, 2 or croak "seek(2) failed: $!";
+    my $offset = tell $logfh;
+    croak "tell(2) failed: $!" unless defined $offset;
+
+    my $child_pid = fork;
+    croak "fork(2) failed: $!" unless defined $child_pid;
+
+    if ($child_pid == 0) {
+        open STDOUT, '>&', $logfh or croak "dup(2) failed: $!";
+        open STDERR, '>&', $logfh or croak "dup(2) failed: $!";
+        CORE::exec 'valkey-cli', @args
+            or do { print STDERR "exec valkey-cli failed: $!\n"; exit 1; };
+    }
+
+    close $logfh;
+
+    my $elapsed = 0;
+    while ($elapsed <= $self->timeout) {
+        if (waitpid($child_pid, WNOHANG) > 0) {
+            return {
+                output    => $self->_read_log_since($logfile, $offset),
+                timed_out => 0,
+            };
+        }
+
+        sleep $elapsed += 0.1;
+    }
+
+    kill SIGTERM, $child_pid;
+    while (waitpid($child_pid, WNOHANG) == 0) {
+        sleep 0.1;
+    }
+
+    return {
+        output    => $self->_read_log_since($logfile, $offset),
+        timed_out => 1,
+    };
+}
+
+sub _read_log_since {
+    my ($self, $logfile, $offset) = @_;
+
+    my $output = q[];
+    if (open my $logfh, '<', $logfile) {
+        seek $logfh, $offset, 0 or croak "seek(2) failed: $!";
+        $output = do { local $/; <$logfh> };
+        close $logfh;
+    }
+
+    return $output;
 }
 
 __PACKAGE__->meta->make_immutable;
