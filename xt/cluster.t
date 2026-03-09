@@ -95,4 +95,15 @@ subtest 'cluster without port croaks' => sub {
     like $@, qr/cluster mode requires a port/, 'croaks without port';
 };
 
+subtest 'cluster with unixsocket croaks' => sub {
+    eval {
+        Test::ValkeyServer->new(
+            cluster    => 1,
+            auto_start => 0,
+            conf       => { port => empty_port(), unixsocket => '/tmp/valkey.sock' },
+        );
+    };
+    like $@, qr/cluster mode does not support unixsocket/, 'croaks with unixsocket';
+};
+
 done_testing;
