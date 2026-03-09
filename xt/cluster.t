@@ -32,26 +32,15 @@ subtest 'basic cluster' => sub {
     is $redis->ping, 'PONG', 'ping pong ok';
 
     my %connect = $server->connect_info;
-    ok $connect{server}, 'uses TCP (no unix socket)';
+    is $connect{server}, "127.0.0.1:$port", 'connect_info uses configured host and port';
 
-    $server->stop;
-    is $server->pid, undef, 'pid removed after stop';
-};
-
-subtest 'cluster info' => sub {
-    my $port = empty_port();
-    my $server = Test::ValkeyServer->new(
-        cluster => 1,
-        timeout => 10,
-        conf    => { port => $port, bind => '127.0.0.1' },
-    );
     my $host = $server->conf->{bind};
-
     my $info = `valkey-cli -h $host -p $port cluster info 2>&1`;
     like $info, qr/cluster_state:ok/, 'cluster_state is ok';
     like $info, qr/cluster_known_nodes:1/, 'single node cluster';
 
     $server->stop;
+    is $server->pid, undef, 'pid removed after stop';
 };
 
 subtest 'manual start with cluster' => sub {
