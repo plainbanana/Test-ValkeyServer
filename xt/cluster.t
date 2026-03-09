@@ -85,6 +85,24 @@ subtest 'exec with cluster croaks' => sub {
     like $@, qr/cluster mode is not supported with exec/, 'exec croaks in cluster mode';
 };
 
+subtest 'cluster without bind' => sub {
+    my $port = empty_port();
+    my $server = Test::ValkeyServer->new(
+        cluster => 1,
+        timeout => 10,
+        conf    => { port => $port },
+    );
+    ok $server->pid, 'pid ok';
+
+    my $valkey = Redis->new($server->connect_info);
+    is $valkey->ping, 'PONG', 'ping pong ok';
+
+    my %connect = $server->connect_info;
+    is $connect{server}, "0.0.0.0:$port", 'defaults to 0.0.0.0';
+
+    $server->stop;
+};
+
 subtest 'cluster without port croaks' => sub {
     eval {
         Test::ValkeyServer->new(

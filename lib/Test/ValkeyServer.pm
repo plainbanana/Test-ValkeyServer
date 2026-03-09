@@ -60,7 +60,6 @@ sub BUILD {
             unless defined $self->conf->{port} && $self->conf->{port} > 0;
         croak "cluster mode does not support unixsocket"
             if defined $self->conf->{unixsocket};
-        $self->conf->{bind} = '127.0.0.1' unless defined $self->conf->{bind};
         $self->conf->{'cluster-enabled'} = 'yes';
         $self->conf->{'cluster-config-file'} = "$tmpdir/nodes.conf";
     }
@@ -271,7 +270,7 @@ sub _conf_string {
 sub _create_cluster {
     my ($self, $pid) = @_;
 
-    my $host = $self->conf->{bind} || '127.0.0.1';
+    my $host = $self->conf->{bind} || '0.0.0.0';
     my $port = $self->conf->{port};
 
     my $output = `valkey-cli --cluster create $host:$port --cluster-replicas 0 --cluster-yes 2>&1`;
