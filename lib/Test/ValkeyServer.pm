@@ -43,7 +43,7 @@ has _redis => (
 );
 
 has cluster => (
-    is      => 'rw',
+    is      => 'ro',
     default => 0,
 );
 
