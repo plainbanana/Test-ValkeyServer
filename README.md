@@ -73,7 +73,8 @@ Available options are:
 
 - cluster => 0 | 1 (Default: 0)
 
-    Enable single-node cluster mode. When enabled, Unix sockets are disabled and
+    Enable single-node cluster mode. Unix sockets are not supported in this mode
+    (specifying `unixsocket` in `conf` throws an error), and
     `valkey-cli --cluster create` is called after the server starts. A TCP port
     must be specified via `conf`. Requires `valkey-cli` in PATH and Valkey 8.1+.
 

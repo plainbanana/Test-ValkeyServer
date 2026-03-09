@@ -370,7 +370,8 @@ Your conf parameter will be:
 
 =item * cluster => 0 | 1 (Default: 0)
 
-Enable single-node cluster mode. When enabled, Unix sockets are disabled and
+Enable single-node cluster mode. Unix sockets are not supported in this mode
+(specifying C<unixsocket> in C<conf> throws an error), and
 C<valkey-cli --cluster create> is called after the server starts. A TCP port
 must be specified via C<conf>. Requires C<valkey-cli> in PATH and Valkey 8.1+.
 
