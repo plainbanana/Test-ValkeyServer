@@ -87,7 +87,7 @@ subtest 'cluster without bind' => sub {
     is $valkey->ping, 'PONG', 'ping pong ok';
 
     my %connect = $server->connect_info;
-    is $connect{server}, "0.0.0.0:$port", 'defaults to 0.0.0.0';
+    is $connect{server}, "127.0.0.1:$port", 'defaults to 127.0.0.1';
 
     $server->stop;
 };
