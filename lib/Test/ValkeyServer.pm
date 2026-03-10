@@ -297,6 +297,7 @@ sub _create_cluster {
     unless ($cluster_ok) {
         kill SIGTERM, $pid;
         while (waitpid($pid, WNOHANG) >= 0) {
+            sleep(0.1);
         }
         $self->pid(undef);
         my @message = ('*** failed to create valkey cluster ***');
