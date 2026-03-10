@@ -3,3 +3,6 @@ authority="cpan:PLAIN"
 module_maker="ModuleBuildTiny"
 badges = ["github-actions/test.yaml"]
 markdown_maker = "Pod::Markdown::Github"
+
+[FileGatherer]
+exclude_match = ['^CLAUDE\.md$']
