@@ -291,7 +291,8 @@ sub _create_cluster {
             $cluster_ok = 1;
             last;
         }
-        sleep($elapsed += 0.1);
+        sleep(0.1);
+        $elapsed += 0.1;
     }
 
     unless ($cluster_ok) {
