@@ -130,7 +130,7 @@ sub start {
             }
         }
 
-        sleep $elapsed += 0.1;
+        sleep($elapsed += 0.1);
     }
 
     unless ($ready) {
@@ -231,7 +231,7 @@ sub wait_exit {
     my $pid = $self->pid;
     do {
         $kid = waitpid($pid, WNOHANG);
-        sleep 0.1;
+        sleep(0.1);
     } while $kid >= 0;
 
     $self->pid(undef);
@@ -291,7 +291,7 @@ sub _create_cluster {
             $cluster_ok = 1;
             last;
         }
-        sleep $elapsed += 0.1;
+        sleep($elapsed += 0.1);
     }
 
     unless ($cluster_ok) {
@@ -345,12 +345,12 @@ sub _run_valkey_cli {
             };
         }
 
-        sleep $elapsed += 0.1;
+        sleep($elapsed += 0.1);
     }
 
     kill SIGTERM, $child_pid;
     while (waitpid($child_pid, WNOHANG) == 0) {
-        sleep 0.1;
+        sleep(0.1);
     }
 
     return {
