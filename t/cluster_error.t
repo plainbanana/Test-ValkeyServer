@@ -87,11 +87,15 @@ subtest '_run_valkey_cli captures only new log output' => sub {
     unlike $second->{output}, qr/stdout one|stderr one|existing server log/,
         'second call only returns new output';
 
-    my $log = _read_file($logfile);
-    like $log, qr/existing server log/, 'existing log remains in file';
-    like $log, qr/stdout one/, 'first output is appended to shared log';
-    like $log, qr/stderr one/, 'first stderr is appended to shared log';
-    like $log, qr/stdout two/, 'second output is appended to shared log';
+    my $server_log = _read_file($logfile);
+    like $server_log, qr/existing server log/, 'existing server log remains in file';
+    unlike $server_log, qr/stdout one/, 'cli output is not in server log';
+
+    my $cli_logfile = File::Spec->catfile("$tmpdir", 'valkey-cli.log');
+    my $cli_log = _read_file($cli_logfile);
+    like $cli_log, qr/stdout one/, 'first output is in cli log';
+    like $cli_log, qr/stderr one/, 'first stderr is in cli log';
+    like $cli_log, qr/stdout two/, 'second output is in cli log';
 };
 
 subtest '_run_valkey_cli reports exec failure from log output' => sub {

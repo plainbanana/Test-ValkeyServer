@@ -320,7 +320,7 @@ sub _run_valkey_cli {
     my ($self, @args) = @_;
 
     my $tmpdir = $self->tmpdir;
-    my $logfile = "$tmpdir/valkey-server.log";
+    my $logfile = "$tmpdir/valkey-cli.log";
 
     open my $logfh, '>>', $logfile
         or croak "failed to create log file: $logfile";
