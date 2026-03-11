@@ -349,7 +349,8 @@ sub _run_valkey_cli {
             };
         }
 
-        sleep($elapsed += 0.1);
+        sleep(0.1);
+        $elapsed += 0.1;
     }
 
     kill SIGTERM, $child_pid;
