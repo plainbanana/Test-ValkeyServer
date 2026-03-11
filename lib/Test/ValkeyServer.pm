@@ -42,6 +42,11 @@ has _redis => (
     isa => 'Redis',
 );
 
+has cluster => (
+    is      => 'ro',
+    default => 0,
+);
+
 no Mouse;
 
 sub BUILD {
@@ -50,7 +55,19 @@ sub BUILD {
     $self->_owner_pid($$);
 
     my $tmpdir = $self->tmpdir;
-    unless (defined $self->conf->{port} or defined $self->conf->{unixsocket}) {
+    if ($self->cluster) {
+        croak "cluster mode requires a port to be specified in conf"
+            unless defined $self->conf->{port} && $self->conf->{port} > 0;
+        croak "cluster mode does not support unixsocket"
+            if defined $self->conf->{unixsocket};
+        $self->conf->{bind} = '127.0.0.1'
+            unless defined $self->conf->{bind};
+        $self->conf->{'cluster-announce-ip'} = $self->conf->{bind}
+            unless defined $self->conf->{'cluster-announce-ip'};
+        $self->conf->{'cluster-config-file'} = "$tmpdir/nodes.conf";
+        $self->conf->{'cluster-enabled'} = 'yes';
+    }
+    elsif (!defined $self->conf->{port} && !defined $self->conf->{unixsocket}) {
         $self->conf->{unixsocket} = "$tmpdir/valkey.sock";
         $self->conf->{port} = '0';
     }
@@ -89,7 +106,7 @@ sub start {
     if ($pid == 0) {
         open STDOUT, '>&', $logfh or croak "dup(2) failed:$!";
         open STDERR, '>&', $logfh or croak "dup(2) failed:$!";
-        $self->exec;
+        $self->_exec;
     }
     close $logfh;
 
@@ -115,7 +132,7 @@ sub start {
             }
         }
 
-        sleep $elapsed += 0.1;
+        sleep($elapsed += 0.1);
     }
 
     unless ($ready) {
@@ -136,6 +153,10 @@ sub start {
         };
     }
 
+    if ($self->cluster) {
+        $self->_create_cluster($pid);
+    }
+
     # This is sometimes needed to send commands to ValkeyServer during the stop process.
     # Generally, we would like to generate it lazily and not have it as a property
     # of the object. However, if you try to create the object at the stop,
@@ -149,13 +170,22 @@ sub start {
 sub exec {
     my ($self) = @_;
 
+    croak "cluster mode is not supported with exec(); use start() instead"
+        if $self->cluster;
+
+    $self->_exec;
+}
+
+sub _exec {
+    my ($self) = @_;
+
     my $tmpdir = $self->tmpdir;
 
     open my $conffh, '>', "$tmpdir/valkey.conf" or croak "cannot write conf: $!";
     print $conffh $self->_conf_string;
     close $conffh;
 
-    exec 'valkey-server', "$tmpdir/valkey.conf"
+    CORE::exec 'valkey-server', "$tmpdir/valkey.conf"
         or do {
             if ($! == Errno::ENOENT) {
                 print STDERR "exec failed: no such file or directory\n";
@@ -203,7 +233,7 @@ sub wait_exit {
     my $pid = $self->pid;
     do {
         $kid = waitpid($pid, WNOHANG);
-        sleep 0.1;
+        sleep(0.1);
     } while $kid >= 0;
 
     $self->pid(undef);
@@ -239,6 +269,112 @@ sub _conf_string {
     }
 
     $conf;
+}
+
+sub _create_cluster {
+    my ($self, $pid) = @_;
+
+    my $host = $self->conf->{bind};
+    my $port = $self->conf->{port};
+
+    my $create = $self->_run_valkey_cli(
+        '--cluster', 'create', "$host:$port",
+        '--cluster-replicas', '0', '--cluster-yes',
+    );
+
+    my $elapsed = 0;
+    my $cluster_ok;
+    my $info = { output => q[], timed_out => 0 };
+    while ($elapsed <= $self->timeout) {
+        $info = $self->_run_valkey_cli('-h', $host, '-p', $port, 'cluster', 'info');
+        last if $info->{timed_out};
+
+        if ($info->{output} =~ /cluster_state:ok/) {
+            $cluster_ok = 1;
+            last;
+        }
+        sleep(0.1);
+        $elapsed += 0.1;
+    }
+
+    unless ($cluster_ok) {
+        kill SIGTERM, $pid;
+        while (waitpid($pid, WNOHANG) >= 0) {
+            sleep(0.1);
+        }
+        $self->pid(undef);
+        my @message = ('*** failed to create valkey cluster ***');
+        push @message, 'valkey-cli --cluster create timed out'
+            if $create->{timed_out};
+        push @message, 'valkey-cli cluster info timed out'
+            if $info->{timed_out};
+        push @message, "valkey-cli output: $create->{output}"
+            if length $create->{output};
+        push @message, "last valkey-cli cluster info output: $info->{output}"
+            if length $info->{output};
+        croak join("\n", @message) . "\n";
+    }
+}
+
+sub _run_valkey_cli {
+    my ($self, @args) = @_;
+
+    my $tmpdir = $self->tmpdir;
+    my $logfile = "$tmpdir/valkey-cli.log";
+
+    open my $logfh, '>>', $logfile
+        or croak "failed to create log file: $logfile";
+    seek $logfh, 0, 2 or croak "seek(2) failed: $!";
+    my $offset = tell $logfh;
+    croak "tell(2) failed: $!" unless defined $offset;
+
+    my $child_pid = fork;
+    croak "fork(2) failed: $!" unless defined $child_pid;
+
+    if ($child_pid == 0) {
+        open STDOUT, '>&', $logfh or croak "dup(2) failed: $!";
+        open STDERR, '>&', $logfh or croak "dup(2) failed: $!";
+        CORE::exec 'valkey-cli', @args
+            or do { print STDERR "exec valkey-cli failed: $!\n"; exit 1; };
+    }
+
+    close $logfh;
+
+    my $elapsed = 0;
+    while ($elapsed <= $self->timeout) {
+        if (waitpid($child_pid, WNOHANG) > 0) {
+            return {
+                output    => $self->_read_log_since($logfile, $offset),
+                timed_out => 0,
+            };
+        }
+
+        sleep(0.1);
+        $elapsed += 0.1;
+    }
+
+    kill SIGTERM, $child_pid;
+    while (waitpid($child_pid, WNOHANG) == 0) {
+        sleep(0.1);
+    }
+
+    return {
+        output    => $self->_read_log_since($logfile, $offset),
+        timed_out => 1,
+    };
+}
+
+sub _read_log_since {
+    my ($self, $logfile, $offset) = @_;
+
+    my $output = q[];
+    if (open my $logfh, '<', $logfile) {
+        seek $logfh, $offset, 0 or croak "seek(2) failed: $!";
+        $output = do { local $/; <$logfh> };
+        close $logfh;
+    }
+
+    return $output;
 }
 
 __PACKAGE__->meta->make_immutable;
@@ -313,9 +449,27 @@ Your conf parameter will be:
         save      => '900 1',
     });
 
+=item * cluster => 0 | 1 (Default: 0)
+
+Enable single-node cluster mode. Unix sockets are not supported in this mode
+(specifying C<unixsocket> in C<conf> throws an error), and
+C<valkey-cli --cluster create> is called after the server starts. A TCP port
+must be specified via C<conf>. Requires C<valkey-cli> in PATH and Valkey 8.1+.
+
+    use Test::TCP qw(empty_port);
+    my $server = Test::ValkeyServer->new(
+        cluster => 1,
+        conf    => { port => empty_port(), bind => '127.0.0.1' },
+    );
+    my $redis = Redis->new($server->connect_info);
+    # Now you can use cluster commands
+
+Note: cluster mode is not compatible with C<exec()>; use C<start()> instead.
+
 =item * timeout => 'Int'
 
 Timeout seconds for detecting if valkey-server is awake or not. (Default: 3)
+In cluster mode, this timeout applies to both server startup and cluster creation separately.
 
 =item * tmpdir => 'String'
 

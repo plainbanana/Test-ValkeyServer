@@ -27,7 +27,9 @@ jobs:
             curl -fsSL https://github.com/valkey-io/valkey/releases/download/9.0.3/valkey-9.0.3-noble-x86_64.tar.gz -o /tmp/valkey.tar.gz
             tar xzf /tmp/valkey.tar.gz -C /tmp
             sudo cp /tmp/valkey-9.0.3-noble-x86_64/bin/valkey-server /usr/local/bin/
+            sudo cp /tmp/valkey-9.0.3-noble-x86_64/bin/valkey-cli /usr/local/bin/
             sudo chmod +x /usr/local/bin/valkey-server
+            sudo chmod +x /usr/local/bin/valkey-cli
           }
           valkey-server --version
       - run: |
