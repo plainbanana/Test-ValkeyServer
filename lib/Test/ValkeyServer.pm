@@ -62,10 +62,10 @@ sub BUILD {
             if defined $self->conf->{unixsocket};
         $self->conf->{bind} = '127.0.0.1'
             unless defined $self->conf->{bind};
-        $self->conf->{'cluster-enabled'} = 'yes';
-        $self->conf->{'cluster-config-file'} = "$tmpdir/nodes.conf";
         $self->conf->{'cluster-announce-ip'} = $self->conf->{bind}
             unless defined $self->conf->{'cluster-announce-ip'};
+        $self->conf->{'cluster-config-file'} = "$tmpdir/nodes.conf";
+        $self->conf->{'cluster-enabled'} = 'yes';
     }
     elsif (!defined $self->conf->{port} && !defined $self->conf->{unixsocket}) {
         $self->conf->{unixsocket} = "$tmpdir/valkey.sock";
