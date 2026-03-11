@@ -1,6 +1,8 @@
 Revision history for Perl extension Test::ValkeyServer
 
 {{$NEXT}}
+
+0.01 2026-03-11T18:23:39Z
     - Fork from Test::RedisServer 0.24 for Valkey compatibility
     - Rename package to Test::ValkeyServer
     - Replace redis-server with valkey-server
